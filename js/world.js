@@ -36,7 +36,8 @@ function loop() {
     try { k.fn(k.easing(x), dt); } catch (e) { console.error(e); tasks.delete(k); k.res(); continue; }
     if (x >= 1) { tasks.delete(k); k.res(); }
   }
-  if (idleOrbit) {
+  if (roam.active) updateRoam(dt);
+  else if (idleOrbit) {
     const a = time * 0.06;
     camPos.set(Math.cos(a) * 5.2, 2.7, Math.sin(a) * 5.2);
     camTarget.set(0, 0.9, 0);
@@ -302,6 +303,12 @@ export function init(el, labels) {
   camera = new THREE.PerspectiveCamera(50, 1, 0.05, 40);
   clock = new THREE.Clock();
   buildRoom();
+  freeMarker = new THREE.Mesh(new THREE.RingGeometry(0.38, 0.5, 40),
+    new THREE.MeshBasicMaterial({ color: '#e3b55b', transparent: true, opacity: 0.5, depthWrite: false }));
+  freeMarker.rotation.x = -Math.PI / 2;
+  freeMarker.visible = false;
+  scene.add(freeMarker);
+  initInput();
   resize();
   window.addEventListener('resize', resize);
   requestAnimationFrame(loop);
@@ -332,6 +339,8 @@ export function setupPlayers(players) {
   }
   for (const s of seats) scene.remove(s.chair);
   actors = [];
+  roam.active = false;
+  if (freeMarker) freeMarker.visible = false;
   seats = SEAT_ANGLES[players.length].map(buildChair);
   players.forEach((p, i) => {
     const ch = buildCharacter(p.look);
@@ -410,18 +419,223 @@ async function walkToSeat(a) {
   const tan = new THREE.Vector3(-dir.z, 0, dir.x);
   const side = seat.pos.clone().add(tan.multiplyScalar(0.45 * Math.sign(end - start || 1)));
   pts.push(side);
+  a.label.classList.remove('hidden');
   await walkPath(ch, pts);
-  // s'asseoir
+  await sitOn(a);
+}
+
+// Animation « s'asseoir » depuis la position actuelle jusqu'au siège de l'acteur.
+async function sitOn(a) {
+  const { ch, seat } = a;
+  ch.walking = false;
+  ch.body.position.y = 0;
+  const dir = seat.pos.clone().normalize();
   const from = ch.root.position.clone();
-  const to = seat.pos.clone().add(dir.clone().multiplyScalar(0.03));
+  const to = seat.pos.clone().add(dir.multiplyScalar(0.03));
   to.y = SEAT_Y + 0.05 - 0.52;
   const yaw0 = ch.root.rotation.y, yaw1 = seatYaw(seat);
+  const pose0 = { ...ch.pose };
   await tween(0.75, t => {
     ch.root.position.lerpVectors(from, to, t);
     ch.root.rotation.y = angleLerp(yaw0, yaw1, Math.min(1, t * 1.5));
-    ch.applyPose(lerpPose(POSES.stand, POSES.sit, t));
+    ch.applyPose(lerpPose(pose0, POSES.sit, t));
   });
+  a.seated = true;
+}
+
+// Les bots indiqués entrent l'un après l'autre et vont s'asseoir.
+export function botsToSeats(indices, delay = 1.2) {
+  return Promise.all(indices.map((i, k) => wait(0.8 + k * delay).then(() => walkToSeat(actors[i]))));
+}
+
+export function allSeated() { return actors.every(a => a.seated); }
+
+// ---------- Exploration libre (personnage contrôlé par le joueur) ----------
+const input = { keys: new Set(), joy: { x: 0, y: 0 }, dragging: false, lastX: 0 };
+const roam = { active: false, i: 0, camYaw: Math.PI / 2, camDist: 3.4, near: false, onNear: null };
+const PLAYER_R = 0.25;
+let freeMarker;
+
+export function spawnPlayer(i) {
+  const a = actors[i];
+  a.ch.root.visible = true;
+  a.ch.root.position.set(DOOR.x + 1.4, 0, DOOR.z + 1.3);
+  a.ch.root.rotation.y = Math.PI / 2;
+  a.ch.applyPose(POSES.stand);
   a.label.classList.remove('hidden');
+  roam.camYaw = Math.PI / 2;
+}
+
+export function startRoam(i, onNear) {
+  roam.active = true;
+  roam.i = i;
+  roam.near = false;
+  roam.onNear = onNear;
+  idleOrbit = false;
+  // repère lumineux sur la chaise libre
+  const seat = actors[i].seat;
+  freeMarker.position.set(seat.pos.x, 0.02, seat.pos.z);
+  freeMarker.visible = true;
+}
+
+export function stopRoam() {
+  roam.active = false;
+  freeMarker.visible = false;
+  const ch = actors[roam.i].ch;
+  ch.walking = false;
+}
+
+export function isNearSeat() { return roam.active && roam.near; }
+
+export async function sitPlayer() {
+  const a = actors[roam.i];
+  stopRoam();
+  await sitOn(a);
+}
+
+// Obstacles pour les collisions (cercles et boîtes au sol)
+function obstacles() {
+  const circles = [{ x: 0, z: 0, r: 1.08 }];
+  for (const s of seats) circles.push({ x: s.pos.x, z: s.pos.z, r: 0.3 });
+  for (const a of actors) {
+    if (a === actors[roam.i] || !a.ch.root.visible) continue;
+    circles.push({ x: a.ch.root.position.x, z: a.ch.root.position.z, r: 0.22 });
+  }
+  for (const x of STOOLS_X) circles.push({ x, z: -3.8, r: 0.24 });
+  return circles;
+}
+const STOOLS_X = [-1.5, 0, 1.5, 3];
+const BOXES = [{ x0: -2.8, x1: 3.8, z0: -5.1, z1: -4.15 }]; // comptoir
+
+function collide(p) {
+  for (const c of obstacles()) {
+    const dx = p.x - c.x, dz = p.z - c.z;
+    const d = Math.hypot(dx, dz), min = c.r + PLAYER_R;
+    if (d < min && d > 1e-4) { p.x = c.x + (dx / d) * min; p.z = c.z + (dz / d) * min; }
+  }
+  for (const b of BOXES) {
+    const cx = Math.max(b.x0, Math.min(p.x, b.x1)), cz = Math.max(b.z0, Math.min(p.z, b.z1));
+    const dx = p.x - cx, dz = p.z - cz, d = Math.hypot(dx, dz);
+    if (d < PLAYER_R) {
+      if (d > 1e-4) { p.x = cx + (dx / d) * PLAYER_R; p.z = cz + (dz / d) * PLAYER_R; }
+      else p.z = b.z1 + PLAYER_R;
+    }
+  }
+  const lim = 5.65;
+  p.x = Math.max(-lim, Math.min(lim, p.x));
+  p.z = Math.max(-lim, Math.min(lim, p.z));
+}
+
+const camWanted = new THREE.Vector3(), lookWanted = new THREE.Vector3();
+function updateRoam(dt) {
+  const a = actors[roam.i];
+  const ch = a.ch;
+  // entrée clavier (codes physiques : ZQSD en AZERTY = WASD en QWERTY) + joystick
+  const k = input.keys;
+  let fwd = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0);
+  let side = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0);
+  fwd += -input.joy.y;
+  side += input.joy.x;
+  const len = Math.hypot(fwd, side);
+  if (len > 1) { fwd /= len; side /= len; }
+  const run = k.has('ShiftLeft') || k.has('ShiftRight') || Math.hypot(input.joy.x, input.joy.y) > 0.95;
+  const speed = run ? 2.6 : 1.7;
+
+  const f = new THREE.Vector3(Math.sin(roam.camYaw), 0, Math.cos(roam.camYaw));
+  const r = new THREE.Vector3(-f.z, 0, f.x);
+  const move = f.multiplyScalar(fwd).add(r.multiplyScalar(side));
+  const moving = move.lengthSq() > 0.01;
+  if (moving) {
+    const p = ch.root.position;
+    p.addScaledVector(move, speed * dt);
+    collide(p);
+    ch.root.rotation.y = angleLerp(ch.root.rotation.y, Math.atan2(move.x, move.z), Math.min(1, dt * 12));
+    if (!ch.walking) ch.walking = true;
+    ch.walkPhase += dt * (run ? 4 : 0);
+  } else if (ch.walking) {
+    ch.walking = false;
+    ch.body.position.y = 0;
+    ch.applyPose(POSES.stand);
+  }
+
+  // caméra à la troisième personne
+  const p = ch.root.position;
+  const back = new THREE.Vector3(Math.sin(roam.camYaw), 0, Math.cos(roam.camYaw));
+  camWanted.copy(p).addScaledVector(back, -roam.camDist);
+  camWanted.x = Math.max(-5.7, Math.min(5.7, camWanted.x));
+  camWanted.z = Math.max(-5.7, Math.min(5.7, camWanted.z));
+  // contre un mur, la caméra se rapproche : on la monte pour garder la vue dégagée
+  const squeeze = roam.camDist - Math.hypot(camWanted.x - p.x, camWanted.z - p.z);
+  camWanted.y = 2.2 + Math.max(0, squeeze) * 0.7;
+  lookWanted.copy(p).addScaledVector(back, 1.2);
+  lookWanted.y = 1.0;
+  const s = Math.min(1, dt * 6);
+  camPos.lerp(camWanted, s);
+  camTarget.lerp(lookWanted, s);
+
+  // proximité de la chaise libre
+  const seat = a.seat.pos;
+  const near = Math.hypot(p.x - seat.x, p.z - seat.z) < 0.95;
+  if (near !== roam.near) { roam.near = near; roam.onNear && roam.onNear(near); }
+  freeMarker.material.opacity = 0.45 + Math.sin(clock.elapsedTime * 4) * 0.2;
+}
+
+function initInput() {
+  window.addEventListener('keydown', e => {
+    if (e.target.tagName === 'SELECT') return;
+    input.keys.add(e.code);
+    if (roam.active && e.code.startsWith('Arrow')) e.preventDefault();
+  });
+  window.addEventListener('keyup', e => input.keys.delete(e.code));
+  window.addEventListener('blur', () => input.keys.clear());
+  // glisser pour tourner la caméra
+  const el = renderer.domElement;
+  el.addEventListener('pointerdown', e => {
+    input.dragging = true; input.lastX = e.clientX;
+    try { el.setPointerCapture(e.pointerId); } catch { /* ignoré */ }
+  });
+  el.addEventListener('pointermove', e => {
+    if (!input.dragging || !roam.active) return;
+    roam.camYaw -= (e.clientX - input.lastX) * 0.006;
+    input.lastX = e.clientX;
+  });
+  const end = () => { input.dragging = false; };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+  el.addEventListener('wheel', e => {
+    if (!roam.active) return;
+    roam.camDist = Math.max(2, Math.min(5, roam.camDist + e.deltaY * 0.003));
+  }, { passive: true });
+}
+
+// Joystick tactile (mobile)
+export function bindJoystick(base, knob) {
+  let id = null, cx = 0, cy = 0;
+  const R = 45;
+  base.addEventListener('pointerdown', e => {
+    id = e.pointerId;
+    const b = base.getBoundingClientRect();
+    cx = b.left + b.width / 2; cy = b.top + b.height / 2;
+    try { base.setPointerCapture(id); } catch { /* pointeur déjà relâché */ }
+    move(e);
+  });
+  const move = e => {
+    if (e.pointerId !== id) return;
+    let dx = e.clientX - cx, dy = e.clientY - cy;
+    const d = Math.hypot(dx, dy);
+    if (d > R) { dx = (dx / d) * R; dy = (dy / d) * R; }
+    knob.style.transform = `translate(${dx}px, ${dy}px)`;
+    input.joy.x = dx / R; input.joy.y = dy / R;
+  };
+  const up = e => {
+    if (e.pointerId !== id) return;
+    id = null;
+    knob.style.transform = '';
+    input.joy.x = input.joy.y = 0;
+  };
+  base.addEventListener('pointermove', move);
+  base.addEventListener('pointerup', up);
+  base.addEventListener('pointercancel', up);
 }
 
 export async function intro() {
@@ -646,4 +860,4 @@ export function say(i, text, liar = false) {
 export function clearBubbles() {
   labelsEl.querySelectorAll('.bubble').forEach(b => b.remove());
 }
-export const _debug = () => ({ actors, scene, camera });
+export const _debug = () => ({ actors, scene, camera, roam });

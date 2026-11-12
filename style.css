@@ -129,6 +129,37 @@ h1 span { display: block; font-size: .32em; color: var(--red); letter-spacing: 4
 #panel-title { font-size: 1.5rem; color: var(--gold); }
 #panel-body { margin: 6px 0 10px; line-height: 1.45; }
 
+/* ---------- Exploration ---------- */
+#roam { position: fixed; inset: 0; pointer-events: none; }
+#roam > * { pointer-events: auto; }
+#roam-hint {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  width: max-content; max-width: calc(100% - 24px); text-align: center; font-size: .9rem;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px;
+}
+.keys-touch { display: none; }
+body.touch .keys-touch { display: inline; }
+body.touch .keys-desk { display: none; }
+#sit-prompt { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); animation: pop .25s ease-out; }
+#sit-btn { font-size: 1.1rem; padding: 12px 20px; box-shadow: 0 0 24px rgba(227,181,91,.5); }
+kbd {
+  display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 4px;
+  background: #1b120c; color: var(--gold); font-family: monospace; font-size: .9em;
+}
+body.touch kbd { display: none; }
+#joystick {
+  display: none; position: absolute; left: 28px; bottom: 28px; width: 120px; height: 120px;
+  border-radius: 50%; background: rgba(255,255,255,.08); border: 2px solid rgba(227,181,91,.5);
+  touch-action: none; align-items: center; justify-content: center;
+}
+body.touch #joystick { display: flex; }
+#joy-knob {
+  width: 54px; height: 54px; border-radius: 50%; background: rgba(227,181,91,.75);
+  box-shadow: 0 2px 10px rgba(0,0,0,.5); pointer-events: none;
+}
+body.touch #sit-prompt { bottom: 50px; left: auto; right: 20px; transform: none; }
+#scene canvas { touch-action: none; }
+
 /* ---------- Mobile ---------- */
 @media (max-width: 700px) {
   #log-wrap { width: auto; top: auto; bottom: auto; left: 8px; top: 96px; }

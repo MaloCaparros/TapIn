@@ -16,6 +16,17 @@ python3 -m http.server 8000
 
 puis va sur <http://localhost:8000>.
 
+## Se déplacer dans le bar
+
+En entrant, tu contrôles ton personnage et tu peux te balader librement dans le bar pendant que les autres joueurs vont s'asseoir. Rejoins la **chaise libre** (cercle doré) autour de la table de poker pour lancer la partie.
+
+| | Ordinateur | Mobile |
+|---|---|---|
+| Marcher | ZQSD (AZERTY) / WASD / flèches | Joystick en bas à gauche |
+| Courir | Maj | Pousser le joystick à fond |
+| Tourner la caméra | Glisser la souris (molette : zoom) | Glisser l'écran |
+| S'asseoir | E près de la chaise | Bouton « S'asseoir » |
+
 ## Règles
 
 1. Chaque joueur reçoit **3 cartes** cachées.

@@ -34,16 +34,36 @@ async function startGame(nOpp) {
     .forEach(r => state.players.push({ ...r, isHuman: false, alive: true, hand: [], rev: newRevolver() }));
   $('log').innerHTML = '';
   $('menu').classList.add('hidden');
-  $('hud').classList.remove('hidden');
   state.busy = true;
   state.claim = -1;
   state.turn = -1;
-  render();
-  setInfo('Les joueurs arrivent au bar…');
+  state.revealed = false;
   W.setupPlayers(state.players);
   refreshLabels();
-  await W.intro();
+
+  // Exploration libre : le joueur se balade, les bots vont s'asseoir seuls.
+  W.spawnPlayer(0);
+  const botsSeated = W.botsToSeats(state.players.map((_, i) => i).slice(1));
+  $('roam').classList.remove('hidden');
+  W.startRoam(0, near => $('sit-prompt').classList.toggle('hidden', !near));
+  await new Promise(res => { sitRequest = res; });
+  sitRequest = null;
+  $('roam').classList.add('hidden');
+  $('sit-prompt').classList.add('hidden');
+  await W.sitPlayer();
+
+  $('hud').classList.remove('hidden');
+  render();
+  if (!W.allSeated()) setInfo('On attend que tout le monde soit installé…');
+  await botsSeated;
+  await W.focusTable();
   startRound(Math.floor(Math.random() * state.players.length));
+}
+
+// Résolu quand le joueur demande à s'asseoir (touche E ou bouton).
+let sitRequest = null;
+function trySit() {
+  if (sitRequest && W.isNearSeat()) sitRequest();
 }
 
 function newRevolver() { return { bullet: Math.floor(Math.random() * 6), pulled: 0 }; }
@@ -306,6 +326,10 @@ function initUI() {
   $('btn-liar').onclick = () => { $('form-error').textContent = ''; doCall(0); };
   $('start-btn').onclick = () => startGame(+$('opp-count').value);
   $('log-toggle').onclick = () => $('log-wrap').classList.toggle('open');
+  $('sit-btn').onclick = trySit;
+  window.addEventListener('keydown', e => { if (e.code === 'KeyE') trySit(); });
+  W.bindJoystick($('joystick'), $('joy-knob'));
+  if (window.matchMedia('(pointer: coarse)').matches) document.body.classList.add('touch');
 }
 
 window.TAPIN = state; // pratique pour déboguer dans la console
