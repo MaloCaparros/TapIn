@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TapIn – Poker Menteur</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Écran d'accueil -->
+  <section id="menu" class="screen">
+    <h1>TapIn <span>Poker Menteur · Roulette</span></h1>
+    <p class="tagline">Annonce, bluffe… et prie pour que le barillet soit vide.</p>
+    <div class="rules">
+      <h2>Règles</h2>
+      <ul>
+        <li>Chaque joueur reçoit <b>3 cartes</b> cachées.</li>
+        <li>À tour de rôle, on annonce une combinaison de poker qui existerait parmi <b>toutes les cartes de la table</b> réunies. Chaque annonce doit être plus forte que la précédente.</li>
+        <li>Au lieu d'enchérir, tu peux crier <b>« Menteur ! »</b>. On retourne toutes les cartes :
+          si la combinaison existe, l'accusateur perd ; sinon, c'est l'annonceur.</li>
+        <li>Le perdant pointe son revolver (6 chambres, 1 balle) sur sa tempe et tire.</li>
+        <li>Le dernier survivant gagne la partie.</li>
+      </ul>
+      <p class="small">Ordre : Carte haute &lt; Paire &lt; Double paire &lt; Brelan &lt; Suite &lt; Couleur &lt; Full &lt; Carré &lt; Quinte flush.
+      À type égal, la hauteur départage (couleurs : ♣ &lt; ♦ &lt; ♥ &lt; ♠).</p>
+    </div>
+    <div class="setup">
+      <label>Adversaires :
+        <select id="opp-count">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3" selected>3</option>
+        </select>
+      </label>
+      <button id="start-btn" class="btn primary">Prendre place</button>
+    </div>
+  </section>
+
+  <!-- Table de jeu -->
+  <section id="game" class="screen hidden">
+    <div id="table">
+      <div class="felt">
+        <div id="current-claim" class="claim-box">
+          <div class="label">Annonce en cours</div>
+          <div id="claim-text" class="claim-text">—</div>
+          <div id="claim-by" class="claim-by"></div>
+        </div>
+      </div>
+      <div id="seats"></div>
+    </div>
+
+    <div id="controls">
+      <div id="turn-info"></div>
+      <div id="claim-form">
+        <select id="sel-type"></select>
+        <select id="sel-a"></select>
+        <select id="sel-b"></select>
+        <select id="sel-s"></select>
+        <button id="btn-claim" class="btn primary">Annoncer</button>
+        <button id="btn-min" class="btn" title="Choisir l'annonce minimale">+1</button>
+        <button id="btn-liar" class="btn danger">Menteur !</button>
+      </div>
+      <div id="form-error"></div>
+    </div>
+
+    <div id="log"></div>
+  </section>
+
+  <!-- Overlay roulette / fin -->
+  <div id="overlay" class="hidden">
+    <div class="overlay-box">
+      <div id="overlay-title"></div>
+      <div id="overlay-body"></div>
+      <div id="revolver" class="hidden">
+        <div class="cylinder" id="cylinder"></div>
+      </div>
+      <button id="overlay-btn" class="btn primary"></button>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
