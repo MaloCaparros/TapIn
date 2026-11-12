@@ -1,11 +1,11 @@
 // Scène 3D : bar, table, personnages, cartes, caméra et animations.
 import * as THREE from 'three';
-import { buildCharacter, buildRevolver, POSES, lerpPose } from './characters.js';
+import { buildCharacter, buildRevolver, POSES, lerpPose, HIP_Y } from './characters.js';
 import { SUITS, label } from './rules.js';
 
 const TABLE_Y = 0.8;
 const SEAT_R = 1.32;
-const SEAT_Y = 0.5;
+const SEAT_Y = 0.46;
 const DOOR = new THREE.Vector3(-5.6, 0, 0.6);
 
 let renderer, scene, camera, clock;
@@ -348,7 +348,7 @@ export function setupPlayers(players) {
     ch.root.visible = false;
     scene.add(ch.root);
     const gun = buildRevolver();
-    gun.scale.setScalar(1.35);
+    gun.scale.setScalar(1.2);
     const seat = seats[i];
     const dir = seat.pos.clone().normalize();
     const tan = new THREE.Vector3(-dir.z, 0, dir.x);
@@ -432,7 +432,7 @@ async function sitOn(a) {
   const dir = seat.pos.clone().normalize();
   const from = ch.root.position.clone();
   const to = seat.pos.clone().add(dir.multiplyScalar(0.03));
-  to.y = SEAT_Y + 0.05 - 0.52;
+  to.y = SEAT_Y + 0.085 - HIP_Y;
   const yaw0 = ch.root.rotation.y, yaw1 = seatYaw(seat);
   const pose0 = { ...ch.pose };
   await tween(0.75, t => {
@@ -765,9 +765,9 @@ export async function raiseGun(i) {
     a.ch.applyPose(lerpPose(POSES.sit, POSES.aim, 0.4 + t * 0.6));
     // canon posé contre la tempe : le revolver se place à l'extérieur de la main
     a.ch.root.updateWorldMatrix(true, true);
-    a.ch.head.localToWorld(headPos.set(0, 0.25, 0));
+    a.ch.headCenter.getWorldPosition(headPos);
     a.ch.handR.getWorldPosition(handPos);
-    aimPos.copy(handPos).sub(headPos).normalize().multiplyScalar(0.47).add(headPos);
+    aimPos.copy(handPos);
     a.ch.handR.worldToLocal(aimPos);
     a.gun.position.lerpVectors(p0, aimPos, t);
     a.gun.quaternion.copy(q0);
@@ -826,8 +826,8 @@ const tmp = new THREE.Vector3();
 function updateLabels() {
   const w = container.clientWidth, h = container.clientHeight;
   for (const a of actors) {
-    a.ch.head.getWorldPosition(tmp);
-    tmp.y += 0.62;
+    a.ch.headCenter.getWorldPosition(tmp);
+    tmp.y += 0.45;
     tmp.project(camera);
     const behind = tmp.z > 1;
     a.label.style.transform = `translate(-50%, -100%) translate(${(tmp.x * 0.5 + 0.5) * w}px, ${(-tmp.y * 0.5 + 0.5) * h}px)`;

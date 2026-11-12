@@ -2,6 +2,7 @@
 import * as R from './rules.js';
 import * as W from './world.js';
 import * as S from './audio.js';
+import { prewarm } from './characters.js';
 
 const { ALL, TYPES, KEY, SUITS, SUIT_NAMES, RANKS, STRAIGHT_HIGHS, claimText } = R;
 
@@ -335,3 +336,5 @@ function initUI() {
 window.TAPIN = state; // pratique pour déboguer dans la console
 W.init($('scene'), $('labels'));
 initUI();
+// génère les maillages des personnages pendant que le menu est affiché
+setTimeout(prewarm, 300);

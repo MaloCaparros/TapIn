@@ -59,8 +59,12 @@ L'IA estime par simulation Monte-Carlo la probabilité que chaque annonce existe
 | `js/main.js` | Déroulement de la partie |
 | `js/rules.js` | Cartes, annonces, vérification, IA |
 | `js/world.js` | Scène 3D : bar, table, caméra, cartes, animations |
-| `js/characters.js` | Personnages 3D (construits par code) et revolver |
+| `js/characters.js` | Personnages 3D (maillage unique skinné sur un squelette) et revolver |
 | `js/audio.js` | Sons synthétisés (barillet, détonation, cartes) |
 | `vendor/three.module.min.js` | Three.js r170 (licence MIT) |
 
-Les personnages sont modélisés par code à partir de formes simples. Pour utiliser de vrais modèles 3D (fichiers `.glb`), il suffira de remplacer `buildCharacter` par un chargement via `GLTFLoader`.
+## Comment sont faits les personnages
+
+Chaque corps est décrit comme une **forme lisse** (fonction de distance signée) : ellipsoïdes et cônes arrondis fusionnés en douceur (tronc, épaules, bras, mains, jambes, bottes, cou, tête, nez, oreilles, orbites…). Au chargement, cette forme est convertie en **un seul maillage continu** (algorithme des « surface nets »), puis **skinnée** sur un squelette de 13 os : la peau se plie aux coudes, genoux, hanches et au cou. Les couleurs des vêtements et une occlusion ambiante (ombres de contact) sont précalculées par sommet. Les coiffures sont générées de la même façon.
+
+Pour utiliser des modèles 3D externes (fichiers `.glb`), il suffira de remplacer `buildCharacter` par un chargement via `GLTFLoader` en gardant la même interface (`applyPose`, `updateWalk`, `headCenter`, `handR`).
