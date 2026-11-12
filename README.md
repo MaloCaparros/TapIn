@@ -1,12 +1,14 @@
 # 🎩 TapIn – Poker Menteur
 
-Un jeu de bluff dans un bar enfumé : du **poker menteur** où chaque erreur se paie… au **revolver**.
+Un jeu de bluff en **3D dans le navigateur** : des personnages entrent dans un bar enfumé, s'installent autour d'une table… et jouent au **poker menteur**, où chaque erreur se paie au **revolver**.
 
-Jouable directement dans le navigateur, sans installation ni dépendance.
+▶️ **Jouer :** https://malocaparros.github.io/TapIn/
 
-## Jouer
+Fait avec [Three.js](https://threejs.org/), sans étape de build ni dépendance à installer.
 
-Ouvre simplement `index.html` dans ton navigateur, ou lance un petit serveur :
+## Lancer en local
+
+Les modules JavaScript ne se chargent pas en ouvrant directement `index.html` : il faut un petit serveur.
 
 ```bash
 python3 -m http.server 8000
@@ -21,31 +23,33 @@ puis va sur <http://localhost:8000>.
 3. Au lieu d'enchérir, le joueur suivant peut crier **« Menteur ! »**. Toutes les cartes sont retournées :
    - si la combinaison existe, **l'accusateur** perd ;
    - sinon, c'est **l'annonceur** qui perd.
-4. Le perdant tire avec son revolver : 6 chambres, 1 balle. Chaque coup à vide rapproche de la balle…
+4. Le perdant pointe son revolver sur sa tempe : 6 chambres, 1 balle. Chaque coup à vide rapproche de la balle…
 5. Le dernier survivant gagne.
 
 **Ordre des annonces :** Carte haute < Paire < Double paire < Brelan < Suite < Couleur < Full < Carré < Quinte flush.
 À type égal, la hauteur départage (pour les couleurs : ♣ < ♦ < ♥ < ♠).
 
-## Les adversaires
+## Les personnages
 
-| | Nom | Style |
-|---|---|---|
-| 🦊 | Renarde | Bluffeuse agressive, accuse volontiers |
-| 🐗 | Gaston | Têtu, monte souvent, accuse rarement |
-| 🦉 | Mme Chouette | Prudente, joue les probabilités |
+| Nom | Style de jeu |
+|---|---|
+| Toi | Cheveux en pics, manteau gris et écharpe |
+| Renarde | Bluffeuse agressive, accuse volontiers |
+| Gaston | Têtu, monte souvent, accuse rarement |
+| Mme Chouette | Prudente, joue les probabilités |
 
-L'IA estime par simulation Monte-Carlo la probabilité que chaque annonce existe, à partir de ses propres cartes, puis décide selon sa personnalité (seuil de doute, prise de risque, fréquence de bluff).
+L'IA estime par simulation Monte-Carlo la probabilité que chaque annonce existe à partir de ses propres cartes, puis décide selon sa personnalité.
 
 ## Structure
 
-- `index.html` – structure de la page
-- `style.css` – ambiance du bar et table
-- `game.js` – règles, IA et déroulement de la partie
+| Fichier | Rôle |
+|---|---|
+| `index.html`, `style.css` | Page et interface (menu, annonces, journal) |
+| `js/main.js` | Déroulement de la partie |
+| `js/rules.js` | Cartes, annonces, vérification, IA |
+| `js/world.js` | Scène 3D : bar, table, caméra, cartes, animations |
+| `js/characters.js` | Personnages 3D (construits par code) et revolver |
+| `js/audio.js` | Sons synthétisés (barillet, détonation, cartes) |
+| `vendor/three.module.min.js` | Three.js r170 (licence MIT) |
 
-## Idées pour la suite
-
-- Mode multijoueur en ligne
-- Sons (clic du barillet, détonation, brouhaha du bar)
-- Tenir compte des annonces adverses dans l'IA
-- Variante « une carte de plus à chaque défaite »
+Les personnages sont modélisés par code à partir de formes simples. Pour utiliser de vrais modèles 3D (fichiers `.glb`), il suffira de remplacer `buildCharacter` par un chargement via `GLTFLoader`.
